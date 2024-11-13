@@ -1,1 +1,1 @@
-var tagSearchIndex=[];
+var tagSearchIndex = []

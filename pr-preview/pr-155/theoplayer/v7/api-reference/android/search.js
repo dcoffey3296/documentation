@@ -1,1 +1,212 @@
-const constants={noResult:{l:"No results found",renderable:"No results found"},labels:{modules:"Modules",packages:"Packages",types:"Types",members:"Members",tags:"SearchTags"}};if(void 0===moduleSearchIndex)var moduleSearchIndex;if(void 0===packageSearchIndex)var packageSearchIndex;if(void 0===typeSearchIndex)var typeSearchIndex;if(void 0===memberSearchIndex)var memberSearchIndex;if(void 0===tagSearchIndex)var tagSearchIndex;const clearElementValue=e=>{e.val("")};$((function(){const e=$("#search"),a=$("#reset");clearElementValue(e),a.on("click",(()=>{clearElementValue(e),e.focus()}))}));const itemHasResults=e=>e.l!==constants.noResult;$.widget("custom.catcomplete",$.ui.autocomplete,{_create:function(){this._super()},_renderMenu:function(e,a){const t=this;let r;$.each(a,((a,l)=>{itemHasResults(l)&&l.category!==r&&(e.append(`<li class="ui-autocomplete-category">${l.category}</li>`),r=l.category);const n=t._renderItemData(e,l);l.category?n.attr("aria-label",`${l.category} : ${l.l}`):n.attr("aria-label",l.l),n.attr("class","resultItem")}))},_renderItem:(e,a)=>{const t=$("<li/>").appendTo(e);return $("<div/>").appendTo(t).html(a.renderable),t}});const highlight=e=>'<span class="resultHighlight">'+e+"</span>",escapeHtml=e=>e.replace("&","&amp;").replace("<","&lt;").replace(">","&gt;"),labelForPackage=e=>e.m?e.m+"/"+e.l:e.l,labelForNested=e=>{var a="";return e.p&&(a+=`${e.p}.`),e.l!==e.c&&e.c&&(a+=`${e.c}.`),a+e.l},nestedName=e=>e.l.substring(e.l.lastIndexOf(".")+1),renderableFromLabel=(e,a)=>escapeHtml(e).replace(a,highlight);$((()=>{$("#search").catcomplete({minLength:1,delay:100,source:function(e,a){const t=$.ui.autocomplete.escapeRegex(e.term)+"$",r=new RegExp("^"+t,"i"),l=$.ui.autocomplete.escapeRegex(e.term).split(/(?=[A-Z])/).join("([a-z0-9_$]*?)"),n=new RegExp("^"+l),s=new RegExp($.ui.autocomplete.escapeRegex(e.term),"i"),c=(e,a)=>{const t=[],l=[];return e.map((e=>(e.category=a,e))).forEach((e=>{r.test(e.l)?(e.renderable=renderableFromLabel(e.l,r),t.push(e)):n.test(e.l)?(e.renderable=renderableFromLabel(e.l,n),t.push(e)):s.test(e.l)&&(e.renderable=renderableFromLabel(e.l,s),l.push(e))})),[...t,...l]},o=(e,a)=>{const c=[],o=[];return e.map((e=>(e.category=a,e))).forEach((e=>{const a=nestedName(e);r.test(a)?(e.renderable=renderableFromLabel(labelForNested(e),new RegExp(t,"i")),c.push(e)):n.test(a)?(e.renderable=renderableFromLabel(labelForNested(e),new RegExp(l)),c.push(e)):s.test(labelForNested(e))&&(e.renderable=renderableFromLabel(labelForNested(e),s),o.push(e))})),[...c,...o]};return a([...moduleSearchIndex?c(moduleSearchIndex,constants.labels.modules):[],...packageSearchIndex?(e=>{const a=[],t=[];return e.map((e=>(e.category=constants.labels.packages,e))).forEach((e=>{const l=labelForPackage(e);r.test(e.l)?(e.renderable=renderableFromLabel(e.l,r),a.push(e)):n.test(l)?(e.renderable=renderableFromLabel(l,n),a.push(e)):s.test(l)&&(e.renderable=renderableFromLabel(l,s),t.push(e))})),[...a,...t]})(packageSearchIndex):[],...typeSearchIndex?o(typeSearchIndex,constants.labels.types):[],...memberSearchIndex?o(memberSearchIndex,constants.labels.members):[],...tagSearchIndex?c(tagSearchIndex,constants.labels.tags):[]])},response:function(e,a){a.content.length?$("#search").empty():a.content.push(constants.noResult)},autoFocus:!0,position:{collision:"flip"},select:function(e,a){a.item.l!==constants.noResult.l&&(window.location.href=pathtoroot+a.item.url,$("#search").focus())}})}));
+/*
+ * Copyright 2014-2023 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license.
+ */
+
+const constants = {
+    noResult: {
+        l: "No results found",
+        renderable: "No results found"
+    },
+    labels: {
+        modules: 'Modules',
+        packages: 'Packages',
+        types: 'Types',
+        members: 'Members',
+        tags: 'SearchTags'
+    }
+}
+
+//It is super important to have vars here since they are lifter outside the block
+//ES6 syntax doesn't provide those feature and therefore will fail when one of those values wouldn't be initialized
+//eg. when a request for a given package fails
+if(typeof moduleSearchIndex === 'undefined'){
+    var moduleSearchIndex;
+}
+if(typeof packageSearchIndex === 'undefined'){
+    var packageSearchIndex;
+}
+if(typeof typeSearchIndex === 'undefined'){
+    var typeSearchIndex;
+}
+if(typeof memberSearchIndex === 'undefined'){
+    var memberSearchIndex;
+}
+if(typeof tagSearchIndex === 'undefined'){
+    var tagSearchIndex;
+}
+
+const clearElementValue = (element) => {
+    element.val('')
+}
+
+$(function init() {
+    const search = $("#search")
+    const reset = $("#reset")
+
+    clearElementValue(search)
+    reset.on('click', () => {
+        clearElementValue(search)
+        search.focus()
+    })
+})
+
+const itemHasResults = (item) => {
+    return item.l !== constants.noResult
+}
+
+$.widget("custom.catcomplete", $.ui.autocomplete, {
+    _create: function() {
+        this._super();
+    },
+    _renderMenu: function(ul, items) {
+        const menu = this;
+        let category
+        $.each(items, (index, item) => {
+            const shouldCategoryLabelBeRendered = itemHasResults(item) && item.category !== category
+            if (shouldCategoryLabelBeRendered) {
+                ul.append(`<li class="ui-autocomplete-category">${item.category}</li>`);
+                category = item.category;
+            }
+
+            const li = menu._renderItemData(ul, item);
+            if (item.category) {
+                li.attr("aria-label", `${item.category} : ${item.l}`);
+            } else {
+                li.attr("aria-label", item.l);
+            }
+            li.attr("class", "resultItem");
+        });
+    },
+    _renderItem: (ul, item) => {
+        const li = $("<li/>").appendTo(ul);
+        const div = $("<div/>").appendTo(li);
+        div.html(item.renderable);
+        return li;
+    }
+});
+
+const highlight = (match) => `<span class="resultHighlight">` + match + `</span>`
+const escapeHtml = (str) => str.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+const labelForPackage = (element) => (element.m) ? (element.m + "/" + element.l) : element.l
+const labelForNested = (element) => {
+    var label = ""
+    if(element.p) label += `${element.p}.`
+    if(element.l !== element.c && element.c) label += `${element.c}.`
+    return label + element.l
+}
+const nestedName = (e) => e.l.substring(e.l.lastIndexOf(".") + 1)
+
+const renderableFromLabel = (label, regex) => escapeHtml(label).replace(regex, highlight)
+
+$(() => {
+    $("#search").catcomplete({
+        minLength: 1,
+        delay: 100,
+        source: function(request, response) {
+            const exactRegexp = $.ui.autocomplete.escapeRegex(request.term) + "$"
+            const exactMatcher = new RegExp("^" + exactRegexp, "i");
+            const camelCaseRegexp = ($.ui.autocomplete.escapeRegex(request.term)).split(/(?=[A-Z])/).join("([a-z0-9_$]*?)");
+            const camelCaseMatcher = new RegExp("^" + camelCaseRegexp);
+            const secondaryMatcher = new RegExp($.ui.autocomplete.escapeRegex(request.term), "i");
+
+            const processWithExactLabel = (dataset, category) => {
+                const exactOrCamelMatches = []
+                const secondaryMatches = []
+
+                dataset.map(element => {
+                    element.category = category
+                    return element
+                }).forEach((element) => {
+                    if(exactMatcher.test(element.l)){
+                        element.renderable = renderableFromLabel(element.l, exactMatcher)
+                        exactOrCamelMatches.push(element)
+                    } else if(camelCaseMatcher.test(element.l)){
+                        element.renderable = renderableFromLabel(element.l, camelCaseMatcher)
+                        exactOrCamelMatches.push(element)
+                    } else if(secondaryMatcher.test(element.l)){
+                        element.renderable = renderableFromLabel(element.l, secondaryMatcher)
+                        secondaryMatches.push(element)
+                    }
+                })
+
+                return [...exactOrCamelMatches, ...secondaryMatches]
+            }
+
+            const processPackages = (dataset) => {
+                const exactOrCamelMatches = []
+                const secondaryMatches = []
+
+                dataset.map(element => {
+                    element.category = constants.labels.packages
+                    return element
+                }).forEach((element) => {
+                    const label = labelForPackage(element);
+                    if(exactMatcher.test(element.l)){
+                        element.renderable = renderableFromLabel(element.l, exactMatcher)
+                        exactOrCamelMatches.push(element)
+                    } else if(camelCaseMatcher.test(label)){
+                        element.renderable = renderableFromLabel(label, camelCaseMatcher)
+                        exactOrCamelMatches.push(element)
+                    } else if(secondaryMatcher.test(label)){
+                        element.renderable = renderableFromLabel(label, secondaryMatcher)
+                        secondaryMatches.push(element)
+                    }
+                })
+
+                return [...exactOrCamelMatches, ...secondaryMatches]
+            }
+
+            const processNested = (dataset, label) => {
+                const exactOrCamelMatches = []
+                const secondaryMatches = []
+
+                dataset.map(element => {
+                    element.category = label
+                    return element
+                }).forEach((element) => {
+                    const label = nestedName(element);
+                    if(exactMatcher.test(label)) {
+                        element.renderable = renderableFromLabel(labelForNested(element), new RegExp(exactRegexp, "i"))
+                        exactOrCamelMatches.push(element)
+                    } else if(camelCaseMatcher.test(label)){
+                        element.renderable = renderableFromLabel(labelForNested(element), new RegExp(camelCaseRegexp))
+                        exactOrCamelMatches.push(element)
+                    } else if(secondaryMatcher.test(labelForNested(element))){
+                        element.renderable = renderableFromLabel(labelForNested(element), secondaryMatcher)
+                        secondaryMatches.push(element)
+                    }
+                })
+
+                return [...exactOrCamelMatches, ...secondaryMatches]
+            }
+
+            const modules = moduleSearchIndex ? processWithExactLabel(moduleSearchIndex, constants.labels.modules) : []
+            const packages = packageSearchIndex ? processPackages(packageSearchIndex) : []
+            const types = typeSearchIndex ? processNested(typeSearchIndex, constants.labels.types) : []
+            const members = memberSearchIndex ? processNested(memberSearchIndex, constants.labels.members) : []
+            const tags = tagSearchIndex ? processWithExactLabel(tagSearchIndex, constants.labels.tags) : []
+
+            const result = [...modules, ...packages, ...types, ...members, ...tags]
+            return response(result);
+        },
+        response: function(event, ui) {
+            if (!ui.content.length) {
+                ui.content.push(constants.noResult);
+            } else {
+                $("#search").empty();
+            }
+        },
+        autoFocus: true,
+        position: {
+            collision: "flip"
+        },
+        select: function(event, ui) {
+            if (ui.item.l !== constants.noResult.l) {
+                window.location.href = pathtoroot + ui.item.url;
+                $("#search").focus();
+            }
+        }
+    });
+});
+

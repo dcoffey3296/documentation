@@ -1,1 +1,74 @@
-$((function(){var t=$("[data-typeahead]"),n=t.parents("form"),a=n.attr("action");function e(t){return t.name}function r(t){var n='<div class="list-group-item clearfix">';return n+='<span class="doc-name">'+t.name+"</span>",t.parent_name&&(n+='<span class="doc-parent-name label">'+t.parent_name+"</span>"),n+="</div>"}t.one("focus",(function(){n.addClass("loading"),$.getJSON(a).then((function(a){const s=lunr((function(){this.ref("url"),this.field("name"),this.field("abstract");for(const[t,n]of Object.entries(a))this.add({url:t,name:n.name,abstract:n.abstract})}));t.typeahead({highlight:!0,minLength:3,autoselect:!0},{limit:10,display:e,templates:{suggestion:r},source:function(t,n){const e=t.toLowerCase();n(s.query((function(t){t.term(e,{boost:100}),t.term(e,{boost:10,wildcard:lunr.Query.wildcard.TRAILING})})).map((function(t){var n=a[t.ref];return n.url=t.ref,n})))}}),n.removeClass("loading"),t.trigger("focus")}))}));var s=a.slice(0,-11);t.on("typeahead:select",(function(t,n){window.location=s+n.url}))}));
+// Jazzy - https://github.com/realm/jazzy
+// Copyright Realm Inc.
+// SPDX-License-Identifier: MIT
+
+$(function(){
+  var $typeahead = $('[data-typeahead]');
+  var $form = $typeahead.parents('form');
+  var searchURL = $form.attr('action');
+
+  function displayTemplate(result) {
+    return result.name;
+  }
+
+  function suggestionTemplate(result) {
+    var t = '<div class="list-group-item clearfix">';
+    t += '<span class="doc-name">' + result.name + '</span>';
+    if (result.parent_name) {
+     t += '<span class="doc-parent-name label">' + result.parent_name + '</span>';
+    }
+    t += '</div>';
+    return t;
+  }
+
+  $typeahead.one('focus', function() {
+    $form.addClass('loading');
+
+    $.getJSON(searchURL).then(function(searchData) {
+      const searchIndex = lunr(function() {
+        this.ref('url');
+        this.field('name');
+        this.field('abstract');
+        for (const [url, doc] of Object.entries(searchData)) {
+          this.add({url: url, name: doc.name, abstract: doc.abstract});
+        }
+      });
+
+      $typeahead.typeahead(
+        {
+          highlight: true,
+          minLength: 3,
+          autoselect: true
+        },
+        {
+          limit: 10,
+          display: displayTemplate,
+          templates: { suggestion: suggestionTemplate },
+          source: function(query, sync) {
+            const lcSearch = query.toLowerCase();
+            const results = searchIndex.query(function(q) {
+                q.term(lcSearch, { boost: 100 });
+                q.term(lcSearch, {
+                  boost: 10,
+                  wildcard: lunr.Query.wildcard.TRAILING
+                });
+            }).map(function(result) {
+              var doc = searchData[result.ref];
+              doc.url = result.ref;
+              return doc;
+            });
+            sync(results);
+          }
+        }
+      );
+      $form.removeClass('loading');
+      $typeahead.trigger('focus');
+    });
+  });
+
+  var baseURL = searchURL.slice(0, -"search.json".length);
+
+  $typeahead.on('typeahead:select', function(e, result) {
+    window.location = baseURL + result.url;
+  });
+});
